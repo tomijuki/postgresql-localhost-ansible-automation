@@ -1,0 +1,33 @@
+---
+- name: postgresql ping
+  collections:
+    - community.postgresql
+  hosts: all
+  become: true
+  vars_files:
+    - vars.yml
+    - vault.yml
+
+  tasks:
+
+    - name: Ensure Postgres is up and running
+      ansible.builtin.service:
+        name: "postgresql-{{ postgresql_version_number }}"
+        state: started
+        enabled: true
+
+    - name: Check if the user can connect to the database
+      community.postgresql.postgresql_ping:
+        db: "{{db_name}}"
+        login_user: "{{db_user}}"
+        login_password: "{{db_password}}"
+        ssl_mode: disable
+        login_host: "localhost"
+      become: yes
+      become_user: postgres
+      register: postgres_ping
+      
+    - name: Fail if the user cannot connect to the database
+      ansible.builtin.fail:
+        msg: "Cannot connect to the database with the provided user credentials"
+      when: not postgres_ping.is_available

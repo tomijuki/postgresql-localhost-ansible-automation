@@ -1,0 +1,17 @@
+postgresql_version_number: 12 #instalirana verzija postgresa
+
+db_name: db1
+
+db_user: myuser
+
+db_password: "{{ vault_postgresql_myuser_password }}"
+
+db_schema: myuser_shema
+
+postgresql_options:
+  - { name: listen_addresses, value: "localhost, 192.168.1.5" } #ip adresa virtualke
+  - { name: logging_collector, value: "off" }
+
+postgresql_hba_entries:
+  - { contype: local, databases: all, users: all,                        method: peer          }
+  - { contype: host,  databases: db1, users: myuser,  address: samenet, method: scram-sha-256 }

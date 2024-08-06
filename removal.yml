@@ -1,0 +1,36 @@
+---
+- name: Reverse Postgres Installation and user setup on localhost
+  hosts: all
+  vars_files:
+    - vars.yml
+
+  become: true
+
+  tasks:
+
+
+    - name: Uninstall PostgreSQL and dependencies
+      ansible.builtin.dnf:
+        name:
+          - postgresql
+          - postgresql-server
+          - postgresql-contrib
+          - python3-psycopg2  # Correct package name
+        state: absent
+        update_cache: true
+
+    - name: Stop and disable PostgreSQL service
+      ansible.builtin.systemd:
+        name: "postgresql-{{ postgresql_version_number }}"
+        state: stopped
+        enabled: false
+
+    - name: Remove PostgreSQL data directory
+      ansible.builtin.file:
+        path: "/var/lib/pgsql/{{ postgresql_version_number }}/data"
+        state: absent
+
+    - name: Remove PostgreSQL configuration directory
+      ansible.builtin.file:
+        path: "/var/lib/pgsql/{{ postgresql_version_number }}"
+        state: absent

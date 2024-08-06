@@ -1,0 +1,47 @@
+---
+- name: Postgres Installation and user setup on localhost
+  hosts: all
+  vars_files:
+    - vars.yml
+
+  become: true
+
+  handlers:
+    - name: restart postgresql
+      ansible.builtin.systemd:
+        name: "postgresql-{{ postgresql_version_number }}"
+        state: restarted
+        
+  tasks:
+    - name: Add PostgreSQL repository
+      ansible.builtin.dnf:
+        name: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+        disable_gpg_check: true #turn off license checks
+        state: present
+
+    - name: Install PostgreSQL and dependencies
+      ansible.builtin.dnf:
+        name:
+          - postgresql
+          - postgresql-server
+          - postgresql-contrib
+          - python3-psycopg2  #python library to work with postgres db
+        state: present
+        update_cache: true
+
+    - name: Check if PostgreSQL data directory exists
+      ansible.builtin.stat:
+        path: "/var/lib/pgsql/{{ postgresql_version_number }}/data/PG_VERSION"
+      register: postgres_data
+
+    - name: Create the cluster
+      ansible.builtin.command:
+        cmd: "postgresql-{{ postgresql_version_number }}-setup initdb"
+      when: not postgres_data.stat.exists
+
+    - name: Ensure PostgreSQL is started and enabled
+      ansible.builtin.service:
+        name: "postgresql-{{ postgresql_version_number }}"
+        state: started
+        enabled: true
+      

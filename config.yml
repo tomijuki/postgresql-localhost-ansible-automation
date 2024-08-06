@@ -1,0 +1,82 @@
+---
+- name: postgresql init
+  collections:
+    - community.postgresql
+  hosts: all
+  become: true
+  vars_files:
+    - vars.yml
+    - vault.yml
+
+  handlers:
+    - name: restart postgresql
+      ansible.builtin.systemd:
+        name: "postgresql-{{ postgresql_version_number }}"
+        state: restarted
+  tasks:
+    - name: Utility present (psycopg2)
+      ansible.builtin.package:
+        name: python3-psycopg2
+        state: present
+
+    - name: Set listener
+      community.postgresql.postgresql_set:
+        name: "listen_addresses"
+        value: "localhost, 192.168.1.5"
+      become: true
+      become_user: postgres
+      notify:
+        - restart postgresql
+
+      
+    - name: Create db
+      community.postgresql.postgresql_db:
+        state: present
+        name: "{{db_name}}"
+        encoding: "UTF-8"
+      become: true
+      become_user: postgres
+
+    - name: Create db user
+      community.postgresql.postgresql_user:
+        state: present
+        name: "{{db_user}}"
+        password: "{{db_password}}"
+      become: true
+      become_user: postgres
+
+    - name: Create the schema for user
+      community.postgresql.postgresql_schema:
+        db: "{{db_name}}"
+        name: "{{db_schema}}"
+        owner: "{{db_user}}"
+      become: true
+      become_user: postgres
+
+    - name: Grand db user all privs on the db
+      community.postgresql.postgresql_privs:
+        type: database
+        database: "{{db_name}}" 
+        roles: "{{db_user}}"
+        privs: all
+        grant_option: false
+      become: true
+      become_user: postgres
+
+      
+
+
+    - name: Allow all connections in pg_hba.conf (local)
+      community.postgresql.postgresql_pg_hba:
+        dest: "/var/lib/pgsql/{{ postgresql_version_number }}/data/pg_hba.conf"
+        contype: host
+        databases: all
+        users: all
+        address: samehost
+        method: trust
+      become: true
+      become_user: postgres
+      notify:
+        - restart postgresql
+
+
